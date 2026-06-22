@@ -4,8 +4,7 @@ import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
-const HOSTNAME = window.location.hostname;
-const SOCKET_URL = `http://${HOSTNAME}:5000`;
+const SOCKET_URL = window.location.origin;
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
