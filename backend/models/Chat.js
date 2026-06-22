@@ -18,7 +18,31 @@ const chatSchema = new mongoose.Schema({
   groupAdmin: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  groupDescription: {
+    type: String,
+    default: ''
+  },
+  groupAvatar: {
+    type: String,
+    default: ''
+  },
+  membersInfo: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['owner', 'member'],
+      default: 'member'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });

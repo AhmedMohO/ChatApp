@@ -8,6 +8,7 @@ import {
 	Users,
 	Search,
 	MessageCircle,
+	Check,
 } from "lucide-react";
 
 export default function Sidebar({
@@ -18,6 +19,30 @@ export default function Sidebar({
 }) {
 	const { user, logout } = useAuth();
 	const { onlineUsers } = useSocket();
+
+	const renderStatus = (status) => {
+		const s = status || "sent";
+		if (s === "sent") {
+			return <Check className="h-3.5 w-3.5 text-wa-text-secondary shrink-0" />;
+		}
+		if (s === "delivered") {
+			return (
+				<div className="relative flex items-center h-3.5 w-4 shrink-0">
+					<Check className="h-3.5 w-3.5 text-wa-text-secondary absolute left-0" />
+					<Check className="h-3.5 w-3.5 text-wa-text-secondary absolute left-1.5" />
+				</div>
+			);
+		}
+		if (s === "seen") {
+			return (
+				<div className="relative flex items-center h-3.5 w-4 shrink-0">
+					<Check className="h-3.5 w-3.5 text-wa-teal-light absolute left-0" />
+					<Check className="h-3.5 w-3.5 text-wa-teal-light absolute left-1.5" />
+				</div>
+			);
+		}
+		return <Check className="h-3.5 w-3.5 text-wa-text-secondary shrink-0" />;
+	};
 	const [searchQuery, setSearchQuery] = useState("");
 	const [allUsers, setAllUsers] = useState([]);
 	const [showUserList, setShowUserList] = useState(false);
@@ -269,15 +294,20 @@ export default function Sidebar({
 											</div>
 
 											{/* Message preview */}
-											<p className="text-xs text-wa-text-secondary truncate">
+											<p className="text-xs text-wa-text-secondary truncate flex items-center gap-1">
 												{lastMsg ? (
 													<>
-														<span className="text-white/40 mr-1 font-sans">
+														<span className="text-white/40 mr-1 font-sans shrink-0">
 															{lastMsg.senderId._id === user.id
 																? "You:"
 																: `${lastMsg.senderId.username}:`}
 														</span>
-														{lastMsg.content}
+														{lastMsg.senderId._id === user.id && (
+															<span className="shrink-0 inline-flex mr-0.5">
+																{renderStatus(lastMsg.status)}
+															</span>
+														)}
+														<span className="truncate">{lastMsg.content}</span>
 													</>
 												) : (
 													<span className="italic text-white/30 text-[11px] font-sans">

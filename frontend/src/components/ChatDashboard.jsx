@@ -130,9 +130,155 @@ export default function ChatDashboard() {
       }
     });
 
+    // Listen for message status updates
+    socket.on('message_status_update', ({ chatId, messageIds, status }) => {
+      const currentActiveChat = activeChatRef.current;
+      
+      // Update active chat's messages if open
+      if (currentActiveChat && chatId === currentActiveChat._id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            messageIds.includes(msg._id) ? { ...msg, status } : msg
+          )
+        );
+      }
+
+      // Also update the status of the last message in the sidebar
+      setChats((prevChats) =>
+        prevChats.map((c) => {
+          if (c._id === chatId && c.lastMessage && messageIds.includes(c.lastMessage._id)) {
+            return {
+              ...c,
+              lastMessage: {
+                ...c.lastMessage,
+                status
+              }
+            };
+          }
+          return c;
+        })
+      );
+    });
+
+    // Listen for group membership additions
+    socket.on('member_added', ({ chatId, chat, addedUser, membersInfo }) => {
+      const currentActiveChat = activeChatRef.current;
+      
+      setChats((prevChats) => {
+        const exists = prevChats.some(c => c._id === chatId);
+        if (!exists) {
+          return [chat, ...prevChats];
+        } else {
+          return prevChats.map((c) => {
+            if (c._id === chatId) {
+              const updatedParticipants = c.participants.some(p => p._id === addedUser._id)
+                ? c.participants
+                : [...c.participants, addedUser];
+              return {
+                ...c,
+                participants: updatedParticipants,
+                membersInfo
+              };
+            }
+            return c;
+          });
+        }
+      });
+
+      if (currentActiveChat && chatId === currentActiveChat._id) {
+        setActiveChat((prev) => {
+          if (!prev) return null;
+          const updatedParticipants = prev.participants.some(p => p._id === addedUser._id)
+            ? prev.participants
+            : [...prev.participants, addedUser];
+          return {
+            ...prev,
+            participants: updatedParticipants,
+            membersInfo
+          };
+        });
+      }
+    });
+
+    // Listen for group membership removals
+    socket.on('member_removed', ({ chatId, removedUserId }) => {
+      const currentActiveChat = activeChatRef.current;
+      
+      if (removedUserId === user.id) {
+        alert('You have been removed from the group.');
+        if (currentActiveChat && currentActiveChat._id === chatId) {
+          setActiveChat(null);
+        }
+        setChats((prevChats) => prevChats.filter(c => c._id !== chatId));
+      } else {
+        setChats((prevChats) =>
+          prevChats.map((c) => {
+            if (c._id === chatId) {
+              return {
+                ...c,
+                participants: c.participants.filter(p => p._id !== removedUserId),
+                membersInfo: c.membersInfo ? c.membersInfo.filter(m => m.user._id !== removedUserId) : []
+              };
+            }
+            return c;
+          })
+        );
+
+        if (currentActiveChat && chatId === currentActiveChat._id) {
+          setActiveChat((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              participants: prev.participants.filter(p => p._id !== removedUserId),
+              membersInfo: prev.membersInfo ? prev.membersInfo.filter(m => m.user._id !== removedUserId) : []
+            };
+          });
+        }
+      }
+    });
+
+    // Listen for group updates
+    socket.on('group_updated', ({ chatId, groupName, groupDescription, groupAvatar, groupAdmin, membersInfo }) => {
+      const currentActiveChat = activeChatRef.current;
+
+      setChats((prevChats) =>
+        prevChats.map((c) => {
+          if (c._id === chatId) {
+            return {
+              ...c,
+              groupName: groupName !== undefined ? groupName : c.groupName,
+              groupDescription: groupDescription !== undefined ? groupDescription : c.groupDescription,
+              groupAvatar: groupAvatar !== undefined ? groupAvatar : c.groupAvatar,
+              groupAdmin: groupAdmin !== undefined ? groupAdmin : c.groupAdmin,
+              membersInfo: membersInfo !== undefined ? membersInfo : c.membersInfo
+            };
+          }
+          return c;
+        })
+      );
+
+      if (currentActiveChat && chatId === currentActiveChat._id) {
+        setActiveChat((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            groupName: groupName !== undefined ? groupName : prev.groupName,
+            groupDescription: groupDescription !== undefined ? groupDescription : prev.groupDescription,
+            groupAvatar: groupAvatar !== undefined ? groupAvatar : prev.groupAvatar,
+            groupAdmin: groupAdmin !== undefined ? groupAdmin : prev.groupAdmin,
+            membersInfo: membersInfo !== undefined ? membersInfo : prev.membersInfo
+          };
+        });
+      }
+    });
+
     return () => {
       socket.off('receive_message');
       socket.off('user_typing');
+      socket.off('message_status_update');
+      socket.off('member_added');
+      socket.off('member_removed');
+      socket.off('group_updated');
     };
   }, [socket]);
 

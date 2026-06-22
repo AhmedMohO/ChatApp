@@ -27,6 +27,30 @@ export default function ChatArea({
 	const messagesEndRef = useRef(null);
 	const typingTimeoutRef = useRef(null);
 
+	const renderStatus = (status) => {
+		const s = status || "sent";
+		if (s === "sent") {
+			return <Check className="h-3.5 w-3.5 text-wa-text-secondary shrink-0" />;
+		}
+		if (s === "delivered") {
+			return (
+				<div className="relative flex items-center h-3.5 w-4 shrink-0">
+					<Check className="h-3.5 w-3.5 text-wa-text-secondary absolute left-0" />
+					<Check className="h-3.5 w-3.5 text-wa-text-secondary absolute left-1.5" />
+				</div>
+			);
+		}
+		if (s === "seen") {
+			return (
+				<div className="relative flex items-center h-3.5 w-4 shrink-0">
+					<Check className="h-3.5 w-3.5 text-wa-teal-light absolute left-0" />
+					<Check className="h-3.5 w-3.5 text-wa-teal-light absolute left-1.5" />
+				</div>
+			);
+		}
+		return <Check className="h-3.5 w-3.5 text-wa-text-secondary shrink-0" />;
+	};
+
 	const EMOJIS = [
 		"😀", "😂", "😍", "👍", "🙏", "🔥", "👏", "🎉",
 		"❤️", "🤔", "😎", "💡", "🚀", "💯", "✨", "👀",
@@ -266,7 +290,7 @@ export default function ChatArea({
 								{/* Meta details (time + read status) */}
 								<div className="absolute bottom-1 right-2 flex items-center gap-1 text-[9px] text-[#8696a0] select-none font-sans">
 									<span>{formatMessageTime(msg.createdAt)}</span>
-									{isMe && <Check className="h-3 w-3 text-wa-teal shrink-0" />}
+									{isMe && renderStatus(msg.status)}
 								</div>
 							</div>
 						);
