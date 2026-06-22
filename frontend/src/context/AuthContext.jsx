@@ -1,14 +1,15 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUser } from '../hooks/queries/useUser';
 
 const AuthContext = createContext(null);
 
 export const API_URL = '/api';
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('wa_token') || null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Set default auth headers for axios
   if (token) {
@@ -17,33 +18,26 @@ export const AuthProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
   }
 
+  // Manage user query with React Query
+  const { data: user, isLoading: userLoading, error } = useUser(token);
+
+  const loading = token ? userLoading : false;
+
   useEffect(() => {
-    const verifyUser = async () => {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await axios.get(`${API_URL}/auth/me`);
-        setUser(res.data.user);
-      } catch (err) {
-        console.error('Failed to verify token', err);
-        logout();
-      } finally {
-        setLoading(false);
-      }
-    };
-    verifyUser();
-  }, [token]);
+    if (error && token) {
+      console.error('Failed to verify token', error);
+      logout();
+    }
+  }, [error, token]);
 
   const login = async (email, password) => {
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-      const { token: receivedToken, user: loggedUser } = res.data;
+      const { token: receivedToken, user: loggedUser } = res.data.data;
       
       localStorage.setItem('wa_token', receivedToken);
       setToken(receivedToken);
-      setUser(loggedUser);
+      queryClient.setQueryData(['user', 'me'], loggedUser);
       return { success: true };
     } catch (err) {
       console.error('Login error:', err);
@@ -57,11 +51,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password, avatar) => {
     try {
       const res = await axios.post(`${API_URL}/auth/register`, { username, email, password, avatar });
-      const { token: receivedToken, user: registeredUser } = res.data;
+      const { token: receivedToken, user: registeredUser } = res.data.data;
 
       localStorage.setItem('wa_token', receivedToken);
       setToken(receivedToken);
-      setUser(registeredUser);
+      queryClient.setQueryData(['user', 'me'], registeredUser);
       return { success: true };
     } catch (err) {
       console.error('Registration error:', err);
@@ -75,7 +69,8 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('wa_token');
     setToken(null);
-    setUser(null);
+    queryClient.setQueryData(['user', 'me'], null);
+    queryClient.clear();
   };
 
   return (

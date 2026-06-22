@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   X,
   Info,
@@ -15,8 +14,13 @@ import {
   Search,
   BookOpen
 } from 'lucide-react';
-import { useAuth, API_URL } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useUsers } from '../hooks/queries/useUser';
+import { useUpdateGroup } from '../hooks/mutations/useUpdateGroup';
+import { useAddMember } from '../hooks/mutations/useAddMember';
+import { useRemoveMember } from '../hooks/mutations/useRemoveMember';
+import { useTransferOwnership } from '../hooks/mutations/useTransferOwnership';
 
 export default function InfoSidebar({ chat, onClose }) {
   const { user } = useAuth();
@@ -32,7 +36,13 @@ export default function InfoSidebar({ chat, onClose }) {
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [allUsers, setAllUsers] = useState([]);
+
+  // Queries & Mutations
+  const { data: allUsers = [] } = useUsers(showAddMember);
+  const updateGroupMutation = useUpdateGroup();
+  const addMemberMutation = useAddMember();
+  const removeMemberMutation = useRemoveMember();
+  const transferOwnershipMutation = useTransferOwnership();
 
   // Sync inputs on chat switch
   useEffect(() => {
@@ -46,21 +56,6 @@ export default function InfoSidebar({ chat, onClose }) {
       setIsEditingAvatar(false);
     }
   }, [chat]);
-
-  // Load all users when Add Member section is toggled
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${API_URL}/auth/users`);
-        setAllUsers(res.data);
-      } catch (err) {
-        console.error('Failed to load users:', err);
-      }
-    };
-    if (showAddMember) {
-      fetchUsers();
-    }
-  }, [showAddMember]);
 
   if (!chat) return null;
 
@@ -82,53 +77,79 @@ export default function InfoSidebar({ chat, onClose }) {
     : (otherUser ? otherUser.avatar : 'https://api.dicebear.com/7.x/bottts/svg');
 
   // Handle saving group info changes
-  const handleUpdateGroupInfo = async () => {
-    try {
-      await axios.put(`${API_URL}/chats/${chat._id}`, {
+  const handleUpdateGroupInfo = () => {
+    updateGroupMutation.mutate(
+      {
+        chatId: chat._id,
         groupName: groupNameInput,
         groupDescription: groupDescInput,
         groupAvatar: groupAvatarInput
-      });
-      setIsEditingName(false);
-      setIsEditingDesc(false);
-      setIsEditingAvatar(false);
-    } catch (err) {
-      console.error('Failed to update group info:', err);
-      alert(err.response?.data?.message || 'Failed to update group info');
-    }
+      },
+      {
+        onSuccess: () => {
+          setIsEditingName(false);
+          setIsEditingDesc(false);
+          setIsEditingAvatar(false);
+        },
+        onError: (err) => {
+          console.error('Failed to update group info:', err);
+          alert(err.message || 'Failed to update group info');
+        }
+      }
+    );
   };
 
   // Handle adding member
-  const handleAddMember = async (targetUserId) => {
-    try {
-      await axios.post(`${API_URL}/chats/${chat._id}/members`, { userId: targetUserId });
-      setSearchQuery('');
-    } catch (err) {
-      console.error('Failed to add member:', err);
-      alert(err.response?.data?.message || 'Failed to add member');
-    }
+  const handleAddMember = (targetUserId) => {
+    addMemberMutation.mutate(
+      {
+        chatId: chat._id,
+        userId: targetUserId
+      },
+      {
+        onSuccess: () => {
+          setSearchQuery('');
+        },
+        onError: (err) => {
+          console.error('Failed to add member:', err);
+          alert(err.message || 'Failed to add member');
+        }
+      }
+    );
   };
 
   // Handle removing member
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = (memberId) => {
     if (!window.confirm('Are you sure you want to remove this member from the group?')) return;
-    try {
-      await axios.delete(`${API_URL}/chats/${chat._id}/members/${memberId}`);
-    } catch (err) {
-      console.error('Failed to remove member:', err);
-      alert(err.response?.data?.message || 'Failed to remove member');
-    }
+    removeMemberMutation.mutate(
+      {
+        chatId: chat._id,
+        memberId
+      },
+      {
+        onError: (err) => {
+          console.error('Failed to remove member:', err);
+          alert(err.message || 'Failed to remove member');
+        }
+      }
+    );
   };
 
   // Handle transferring ownership
-  const handleTransferOwnership = async (newOwnerId) => {
+  const handleTransferOwnership = (newOwnerId) => {
     if (!window.confirm('Are you sure you want to transfer group ownership? You will lose owner permissions.')) return;
-    try {
-      await axios.put(`${API_URL}/chats/${chat._id}/transfer-owner`, { newOwnerId });
-    } catch (err) {
-      console.error('Failed to transfer ownership:', err);
-      alert(err.response?.data?.message || 'Failed to transfer ownership');
-    }
+    transferOwnershipMutation.mutate(
+      {
+        chatId: chat._id,
+        newOwnerId
+      },
+      {
+        onError: (err) => {
+          console.error('Failed to transfer ownership:', err);
+          alert(err.message || 'Failed to transfer ownership');
+        }
+      }
+    );
   };
 
   // Filter users to show only those not currently in group

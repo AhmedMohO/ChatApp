@@ -9,8 +9,9 @@ import ChatDashboard from './components/ChatDashboard';
 // Route guard for protected routes
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const hasToken = !!localStorage.getItem('wa_token');
   
-  if (loading) {
+  if (loading || (hasToken && !user)) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0b141a] text-[#e9edef]">
         <div className="flex flex-col items-center gap-4">
@@ -31,8 +32,9 @@ const ProtectedRoute = ({ children }) => {
 // Route guard for auth routes (login/register) to prevent visiting when logged in
 const AuthRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const hasToken = !!localStorage.getItem('wa_token');
 
-  if (loading) {
+  if (loading || (hasToken && !user)) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0b141a] text-[#e9edef]">
         <div className="flex flex-col items-center gap-4">

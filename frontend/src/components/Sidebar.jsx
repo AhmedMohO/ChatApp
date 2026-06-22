@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { useAuth, API_URL } from "../context/AuthContext";
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useSocket } from "../context/SocketContext";
+import { useUsers } from "../hooks/queries/useUser";
+import { useCreateGroup } from "../hooks/mutations/useCreateGroup";
 import {
 	LogOut,
 	MessageSquarePlus,
@@ -44,23 +45,11 @@ export default function Sidebar({
 		return <Check className="h-3.5 w-3.5 text-wa-text-secondary shrink-0" />;
 	};
 	const [searchQuery, setSearchQuery] = useState("");
-	const [allUsers, setAllUsers] = useState([]);
 	const [showUserList, setShowUserList] = useState(false);
 
-	// Fetch all users to support launching new chats
-	useEffect(() => {
-		const fetchUsers = async () => {
-			try {
-				const res = await axios.get(`${API_URL}/auth/users`);
-				setAllUsers(res.data);
-			} catch (err) {
-				console.error("Failed to fetch users:", err);
-			}
-		};
-		if (showUserList) {
-			fetchUsers();
-		}
-	}, [showUserList]);
+	// Fetch all users using React Query
+	const { data: allUsers = [] } = useUsers(showUserList);
+	const createChatMutation = useCreateGroup();
 
 	// Helper to format dates nicely like WhatsApp
 	const formatTime = (dateStr) => {
@@ -109,18 +98,23 @@ export default function Sidebar({
 	};
 
 	// Handle starting a private chat
-	const handleStartPrivateChat = async (recipientId) => {
-		try {
-			const res = await axios.post(`${API_URL}/chats`, {
+	const handleStartPrivateChat = (recipientId) => {
+		createChatMutation.mutate(
+			{
 				type: "private",
 				recipientId,
-			});
-			onSelectChat(res.data);
-			setShowUserList(false);
-			setSearchQuery("");
-		} catch (err) {
-			console.error("Error starting private chat:", err);
-		}
+			},
+			{
+				onSuccess: (newChat) => {
+					onSelectChat(newChat);
+					setShowUserList(false);
+					setSearchQuery("");
+				},
+				onError: (err) => {
+					console.error("Error starting private chat:", err);
+				}
+			}
+		);
 	};
 
 	// Filter existing chats based on query

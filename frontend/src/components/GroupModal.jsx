@@ -1,39 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_URL } from '../context/AuthContext';
 import { X, Search, Check, Users, Loader2 } from 'lucide-react';
+import { useUsers } from '../hooks/queries/useUser';
+import { useCreateGroup } from '../hooks/mutations/useCreateGroup';
 
 export default function GroupModal({ isOpen, onClose, onChatCreated }) {
   const [groupName, setGroupName] = useState('');
-  const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Queries & Mutations
+  const { data: users = [], isLoading: loading } = useUsers(isOpen);
+  const createGroupMutation = useCreateGroup();
 
   useEffect(() => {
     if (!isOpen) return;
-    
-    const fetchUsers = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await axios.get(`${API_URL}/auth/users`);
-        setUsers(res.data);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-        setError('Failed to load users list.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
     
     // Reset state
     setGroupName('');
     setSelectedUsers(new Set());
     setSearchQuery('');
+    setError('');
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -50,7 +37,7 @@ export default function GroupModal({ isOpen, onClose, onChatCreated }) {
     });
   };
 
-  const handleCreateGroup = async (e) => {
+  const handleCreateGroup = (e) => {
     e.preventDefault();
     if (!groupName.trim()) {
       setError('Please provide a group name.');
@@ -61,27 +48,31 @@ export default function GroupModal({ isOpen, onClose, onChatCreated }) {
       return;
     }
 
-    setSubmitting(true);
     setError('');
-    try {
-      const res = await axios.post(`${API_URL}/chats`, {
+    createGroupMutation.mutate(
+      {
         type: 'group',
         groupName: groupName.trim(),
         participants: Array.from(selectedUsers)
-      });
-      onChatCreated(res.data);
-      onClose();
-    } catch (err) {
-      console.error('Error creating group:', err);
-      setError(err.response?.data?.message || 'Failed to create group chat.');
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      {
+        onSuccess: (newChat) => {
+          onChatCreated(newChat);
+          onClose();
+        },
+        onError: (err) => {
+          console.error('Error creating group:', err);
+          setError(err.message || 'Failed to create group chat.');
+        }
+      }
+    );
   };
 
   const filteredUsers = users.filter((u) =>
     u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const submitting = createGroupMutation.isPending;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
