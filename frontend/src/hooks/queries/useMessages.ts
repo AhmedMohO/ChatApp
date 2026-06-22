@@ -12,7 +12,7 @@ export const useMessages = (chatId: string | undefined) => {
       return res.data.data;
     },
     enabled: !!chatId,
-    staleTime: 1000 * 60 * 60, // Keep cached; updates occur in real time via socket.io
+    staleTime: 0, // Set to 0 to trigger backend fetch and seen logic on mount / chat selection
     retry: 1,
   });
 };
