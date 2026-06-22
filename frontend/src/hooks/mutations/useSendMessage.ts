@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { Message, Chat } from '../../types';
 
 export const useSendMessage = () => {
-  const { socket } = useSocket();
-  const { user } = useAuth();
+  const { socket } = useSocket() as any;
+  const { user } = useAuth() as any;
   const queryClient = useQueryClient();
 
   return useMutation({
