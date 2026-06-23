@@ -317,4 +317,111 @@ export class ChatService {
 
     return updatedChat;
   }
+
+  public static async deleteGroup(
+    chatId: string,
+    actionUserId: string,
+    io?: Server
+  ): Promise<void> {
+    const chat = await Chat.findById(chatId);
+    if (!chat) throw new AppError('Chat not found.', 404, 'CHAT_NOT_FOUND');
+    if (chat.type !== 'group') throw new AppError('Only group chats can be deleted.', 400, 'NOT_A_GROUP');
+
+    if (chat.groupAdmin?.toString() !== actionUserId) {
+      throw new AppError('Only the group owner can delete the group.', 403, 'UNAUTHORIZED');
+    }
+
+    // Capture participants list before deletion for socket notifications
+    const participants = [...chat.participants];
+
+    // Delete all messages in the group
+    await Message.deleteMany({ chatId });
+
+    // Delete the group chat document
+    await Chat.findByIdAndDelete(chatId);
+
+    // Notify all participants of the group deletion
+    if (io) {
+      participants.forEach((pId: any) => {
+        io.to(pId.toString()).emit('group_deleted', {
+          chatId
+        });
+      });
+    }
+  }
+
+  public static async leaveGroup(
+    chatId: string,
+    userId: string,
+    io?: Server,
+    onlineUsers?: Map<string, string>
+  ): Promise<any> {
+    const chat = await Chat.findById(chatId);
+    if (!chat) throw new AppError('Chat not found.', 404, 'CHAT_NOT_FOUND');
+    if (chat.type !== 'group') throw new AppError('Only group chats can be left.', 400, 'NOT_A_GROUP');
+
+    const userIdStr = userId.toString();
+    if (!chat.participants.some(p => p.toString() === userIdStr)) {
+      throw new AppError('You are not a member of this group.', 400, 'NOT_A_MEMBER');
+    }
+
+    const isOwner = chat.groupAdmin?.toString() === userIdStr;
+
+    if (isOwner) {
+      // If the owner is the last participant, leaving is equivalent to deleting the group
+      if (chat.participants.length === 1) {
+        await this.deleteGroup(chatId, userId, io);
+        return { deleted: true };
+      } else {
+        // If there are other participants, owner must transfer ownership first
+        throw new AppError(
+          'You are the owner. Please transfer ownership or delete the group.',
+          400,
+          'OWNER_MUST_TRANSFER_OWNERSHIP'
+        );
+      }
+    }
+
+    // Remove member from participants list
+    chat.participants = chat.participants.filter(p => p.toString() !== userIdStr);
+    
+    // Remove member from membersInfo list
+    if (chat.membersInfo) {
+      chat.membersInfo = chat.membersInfo.filter(m => m.user.toString() !== userIdStr);
+    }
+
+    await chat.save();
+
+    const updatedChat = await this.populateChat(Chat.findById(chatId));
+
+    if (io) {
+      // Notify the leaving user (in case they have other tabs/connections open)
+      io.to(userIdStr).emit('member_removed', {
+        chatId,
+        removedUserId: userIdStr
+      });
+
+      // Evict leaving user's socket from room
+      if (onlineUsers) {
+        const socketId = onlineUsers.get(userIdStr);
+        if (socketId) {
+          const socketObj = io.sockets.sockets.get(socketId);
+          if (socketObj) {
+            socketObj.leave(chatId);
+            console.log(`Socket ${socketId} evicted from chat room ${chatId} (user left group)`);
+          }
+        }
+      }
+
+      // Notify remaining members
+      updatedChat.participants.forEach((pId: any) => {
+        io.to(pId.toString()).emit('member_removed', {
+          chatId,
+          removedUserId: userIdStr
+        });
+      });
+    }
+
+    return updatedChat;
+  }
 }

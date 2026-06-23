@@ -121,4 +121,41 @@ export class ChatController {
       next(error);
     }
   };
+
+  public static deleteGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user?._id.toString();
+      if (!currentUserId) throw new Error('Unauthorized');
+
+      const chatId = req.params.chatId as string;
+
+      await ChatService.deleteGroup(chatId, currentUserId, req.io);
+
+      return res.json({
+        success: true,
+        message: 'Group deleted successfully'
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public static leaveGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const currentUserId = req.user?._id.toString();
+      if (!currentUserId) throw new Error('Unauthorized');
+
+      const chatId = req.params.chatId as string;
+
+      const result = await ChatService.leaveGroup(chatId, currentUserId, req.io, req.onlineUsers);
+
+      return res.json({
+        success: true,
+        message: result.deleted ? 'Group deleted since you were the last member' : 'Left group successfully',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

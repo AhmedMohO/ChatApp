@@ -206,6 +206,18 @@ export default function ChatDashboard() {
       });
     });
 
+    // Listen for group deletion
+    socket.on('group_deleted', ({ chatId }) => {
+      if (activeChatIdRef.current === chatId) {
+        alert('This group has been deleted by the administrator.');
+        setActiveChatId(null);
+      }
+      queryClient.setQueryData(['chats'], (oldChats) => {
+        if (!oldChats) return [];
+        return oldChats.filter((c) => c._id !== chatId);
+      });
+    });
+
     return () => {
       socket.off('receive_message');
       socket.off('user_typing');
@@ -213,6 +225,7 @@ export default function ChatDashboard() {
       socket.off('member_added');
       socket.off('member_removed');
       socket.off('group_updated');
+      socket.off('group_deleted');
     };
   }, [socket, user.id, queryClient]);
 
@@ -258,6 +271,10 @@ export default function ChatDashboard() {
           <InfoSidebar
             chat={activeChat}
             onClose={() => setShowInfoSidebar(false)}
+            onLeaveOrDelete={() => {
+              setShowInfoSidebar(false);
+              setActiveChatId(null);
+            }}
           />
         )}
       </div>

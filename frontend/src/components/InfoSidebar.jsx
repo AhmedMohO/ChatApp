@@ -21,8 +21,10 @@ import { useUpdateGroup } from '../hooks/mutations/useUpdateGroup';
 import { useAddMember } from '../hooks/mutations/useAddMember';
 import { useRemoveMember } from '../hooks/mutations/useRemoveMember';
 import { useTransferOwnership } from '../hooks/mutations/useTransferOwnership';
+import { useDeleteGroup } from '../hooks/mutations/useDeleteGroup';
+import { useLeaveGroup } from '../hooks/mutations/useLeaveGroup';
 
-export default function InfoSidebar({ chat, onClose }) {
+export default function InfoSidebar({ chat, onClose, onLeaveOrDelete }) {
   const { user } = useAuth();
   const { onlineUsers } = useSocket();
 
@@ -43,6 +45,8 @@ export default function InfoSidebar({ chat, onClose }) {
   const addMemberMutation = useAddMember();
   const removeMemberMutation = useRemoveMember();
   const transferOwnershipMutation = useTransferOwnership();
+  const deleteGroupMutation = useDeleteGroup();
+  const leaveGroupMutation = useLeaveGroup();
 
   // Sync inputs on chat switch
   useEffect(() => {
@@ -147,6 +151,46 @@ export default function InfoSidebar({ chat, onClose }) {
         onError: (err) => {
           console.error('Failed to transfer ownership:', err);
           alert(err.message || 'Failed to transfer ownership');
+        }
+      }
+    );
+  };
+
+  // Handle deleting group
+  const handleDeleteGroup = () => {
+    if (!window.confirm('WARNING: Are you sure you want to delete this group? All messages and history will be permanently lost for all members.')) return;
+    deleteGroupMutation.mutate(
+      { chatId: chat._id },
+      {
+        onSuccess: () => {
+          if (onLeaveOrDelete) onLeaveOrDelete();
+        },
+        onError: (err) => {
+          console.error('Failed to delete group:', err);
+          alert(err.message || 'Failed to delete group');
+        }
+      }
+    );
+  };
+
+  // Handle leaving group
+  const handleLeaveGroup = () => {
+    const isLastMember = chat.participants.length === 1;
+    const confirmMessage = isLastMember
+      ? 'You are the only member left. Leaving the group will delete it permanently. Proceed?'
+      : 'Are you sure you want to leave this group? You will no longer receive or view messages.';
+    
+    if (!window.confirm(confirmMessage)) return;
+    
+    leaveGroupMutation.mutate(
+      { chatId: chat._id },
+      {
+        onSuccess: () => {
+          if (onLeaveOrDelete) onLeaveOrDelete();
+        },
+        onError: (err) => {
+          console.error('Failed to leave group:', err);
+          alert(err.message || 'Failed to leave group');
         }
       }
     );
@@ -483,6 +527,34 @@ export default function InfoSidebar({ chat, onClose }) {
             })}
           </div>
         </div>
+
+        {/* Group Management Actions */}
+        {isGroup && (
+          <div className="pt-4 border-t border-white/5 space-y-3">
+            {isOwner ? (
+              <div className="space-y-2">
+                <button
+                  onClick={handleDeleteGroup}
+                  disabled={deleteGroupMutation.isPending}
+                  className="w-full flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 disabled:opacity-50 text-xs py-2.5 px-4 rounded-xl font-bold font-sans cursor-pointer active:scale-[0.98] transition-all"
+                >
+                  {deleteGroupMutation.isPending ? 'Deleting Group...' : 'Delete Group'}
+                </button>
+                <p className="text-[10px] text-wa-text-secondary text-center font-sans leading-normal px-2">
+                  As the owner, you can transfer ownership to another member before leaving, or delete the group.
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={handleLeaveGroup}
+                disabled={leaveGroupMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 disabled:opacity-50 text-xs py-2.5 px-4 rounded-xl font-bold font-sans cursor-pointer active:scale-[0.98] transition-all"
+              >
+                {leaveGroupMutation.isPending ? 'Leaving Group...' : 'Leave Group'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

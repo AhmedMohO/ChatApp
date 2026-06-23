@@ -46,6 +46,7 @@ export default function Sidebar({
 	};
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showUserList, setShowUserList] = useState(false);
+	const [activeTab, setActiveTab] = useState("all");
 
 	// Fetch all users using React Query
 	const { data: allUsers = [] } = useUsers(showUserList);
@@ -117,10 +118,20 @@ export default function Sidebar({
 		);
 	};
 
-	// Filter existing chats based on query
+	// Filter existing chats based on query and active tab
 	const filteredChats = chats.filter((chat) => {
 		const details = getChatDetails(chat);
-		return details.name.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesSearch = details.name.toLowerCase().includes(searchQuery.toLowerCase());
+		
+		if (!matchesSearch) return false;
+		
+		if (activeTab === "direct") {
+			return chat.type === "private";
+		}
+		if (activeTab === "group") {
+			return chat.type === "group";
+		}
+		return true;
 	});
 
 	// Filter search-matched users
@@ -196,6 +207,42 @@ export default function Sidebar({
 					/>
 				</div>
 			</div>
+
+			{/* Filter Tabs */}
+			{!showUserList && (
+				<div className="flex gap-2 px-3 pb-3 pt-1 bg-[#111b21] transition-all duration-200 border-b border-white/5">
+					<button
+						onClick={() => setActiveTab("all")}
+						className={`px-3.5 py-1.5 rounded-full text-xs font-semibold font-sans cursor-pointer transition-all duration-200 select-none ${
+							activeTab === "all"
+								? "bg-wa-teal text-[#111b21] shadow-md shadow-wa-teal/10 scale-105"
+								: "bg-[#202c33] text-wa-text-secondary hover:bg-white/5 hover:text-white"
+						}`}
+					>
+						All
+					</button>
+					<button
+						onClick={() => setActiveTab("direct")}
+						className={`px-3.5 py-1.5 rounded-full text-xs font-semibold font-sans cursor-pointer transition-all duration-200 select-none ${
+							activeTab === "direct"
+								? "bg-wa-teal text-[#111b21] shadow-md shadow-wa-teal/10 scale-105"
+								: "bg-[#202c33] text-wa-text-secondary hover:bg-white/5 hover:text-white"
+						}`}
+					>
+						Chats
+					</button>
+					<button
+						onClick={() => setActiveTab("group")}
+						className={`px-3.5 py-1.5 rounded-full text-xs font-semibold font-sans cursor-pointer transition-all duration-200 select-none ${
+							activeTab === "group"
+								? "bg-wa-teal text-[#111b21] shadow-md shadow-wa-teal/10 scale-105"
+								: "bg-[#202c33] text-wa-text-secondary hover:bg-white/5 hover:text-white"
+						}`}
+					>
+						Groups
+					</button>
+				</div>
+			)}
 
 			{/* Conversations or User Discovery list */}
 			<div className="flex-1 overflow-y-auto divide-y divide-white/5">

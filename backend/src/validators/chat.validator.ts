@@ -44,3 +44,16 @@ export const transferOwnerSchema = z.object({
     newOwnerId: z.string({ required_error: 'New owner ID is required to transfer group ownership' })
   })
 });
+
+export const deleteGroupSchema = z.object({
+  params: z.object({
+    chatId: z.string({ required_error: 'Chat ID parameter is required' })
+  })
+});
+
+export const leaveGroupSchema = z.object({
+  params: z.object({
+    chatId: z.string({ required_error: 'Chat ID parameter is required' })
+  })
+});
+

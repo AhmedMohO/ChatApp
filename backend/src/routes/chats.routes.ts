@@ -7,7 +7,9 @@ import {
   updateGroupSchema,
   addMemberSchema,
   removeMemberSchema,
-  transferOwnerSchema
+  transferOwnerSchema,
+  deleteGroupSchema,
+  leaveGroupSchema
 } from '../validators/chat.validator.js';
 
 const router = express.Router();
@@ -20,5 +22,7 @@ router.put('/:chatId', validate(updateGroupSchema), ChatController.updateGroupIn
 router.post('/:chatId/members', validate(addMemberSchema), ChatController.addMember);
 router.delete('/:chatId/members/:memberId', validate(removeMemberSchema), ChatController.removeMember);
 router.put('/:chatId/transfer-owner', validate(transferOwnerSchema), ChatController.transferOwnership);
+router.delete('/:chatId', validate(deleteGroupSchema), ChatController.deleteGroup);
+router.post('/:chatId/leave', validate(leaveGroupSchema), ChatController.leaveGroup);
 
 export default router;
