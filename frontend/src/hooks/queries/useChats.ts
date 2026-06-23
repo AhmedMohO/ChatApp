@@ -11,7 +11,7 @@ export const useChats = () => {
       const res = await axios.get(`${API_URL}/chats`);
       return res.data.data;
     },
-    staleTime: 1000 * 60 * 60, // Chats are kept synchronized via Socket.IO events, safe to cache long-term
+    staleTime: 0, // Set to 0 to keep the chat list updated and prevent stale caches
     retry: 2,
   });
 };
@@ -25,6 +25,6 @@ export const useChat = (chatId: string | undefined) => {
     },
     select: (chats) => chats.find((c) => c._id === chatId),
     enabled: !!chatId,
-    staleTime: Infinity,
+    staleTime: 0, // Set to 0 to sync with the main chats query key config
   });
 };

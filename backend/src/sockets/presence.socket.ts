@@ -10,6 +10,9 @@ export const registerPresenceHandlers = (io: Server, socket: Socket, onlineUsers
 
       socket.join(userId);
 
+      // Send the current list of online user IDs to the registering user
+      socket.emit('online_users_list', Array.from(onlineUsers.keys()));
+
       io.emit('user_online_status', {
         userId,
         status: 'online'

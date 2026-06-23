@@ -43,6 +43,11 @@ export const SocketProvider = ({ children }) => {
       });
     });
 
+    // Listen for the initial list of online users
+    newSocket.on('online_users_list', (userIds) => {
+      setOnlineUsers(new Set(userIds));
+    });
+
     setSocket(newSocket);
 
     return () => {

@@ -21,7 +21,15 @@ export const socketContext = {
 };
 
 // Security and utility Middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", "data:", "https://api.dicebear.com"],
+      'connect-src': ["'self'", "ws:", "wss:"],
+    }
+  }
+}));
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE']
@@ -45,7 +53,7 @@ app.use('/api', apiRoutes);
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
-  app.get('*', (req, res) => {
+  app.get('/*splat', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
   });
 }
